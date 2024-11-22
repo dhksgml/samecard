@@ -1,7 +1,6 @@
 // 캔버스 초기화
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const startButton = document.getElementById('startButton');
 const messageElement = document.getElementById('message');
 
 const canvasWidth = canvas.width;
@@ -21,6 +20,13 @@ let isImgLoad = false;
 
 let timer; // 타이머 ID
 let timeRemaining; // 남은 시간
+
+
+let audioCtx;
+// 음소거 상태
+let isMuted = false;
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let isMusicPlaying = false; // 음악 재생 상태
 
 
 // 동물 이미지 설정
@@ -52,6 +58,200 @@ animalImages.mongkey.src = 'https://via.placeholder.com/80?text=mongkey';
 animalImages.tiger.src = 'https://via.placeholder.com/80?text=tiger';
 animalImages.tiger1.src = 'https://via.placeholder.com/80?text=tiger1';
 animalImages.tiger2.src = 'https://via.placeholder.com/80?text=tiger2';
+
+
+function createBackgroundMusic() {
+    if (isMuted) return;
+
+    const oscillator1 = audioContext.createOscillator();
+    const oscillator2 = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    // 오실레이터 설정
+    oscillator1.type = 'sine'; // 파형 종류
+    oscillator1.frequency.setValueAtTime(261.63, audioContext.currentTime); // C4 음
+    oscillator2.type = 'triangle';
+    oscillator2.frequency.setValueAtTime(329.63, audioContext.currentTime); // E4 음
+
+    // 볼륨 조절
+    gainNode.gain.setValueAtTime(0.01, audioContext.currentTime); // 소리 크기 조절
+
+    // 연결
+    oscillator1.connect(gainNode);
+    oscillator2.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    // 멜로디 반복
+    const melodyDuration = 2; // 2초
+    const startTime = audioContext.currentTime;
+
+    oscillator1.frequency.setValueAtTime(261.63, startTime); // C4
+    oscillator2.frequency.setValueAtTime(329.63, startTime); // E4
+
+    oscillator1.frequency.setValueAtTime(293.66, startTime + 0.5); // D4
+    oscillator2.frequency.setValueAtTime(349.23, startTime + 0.5); // F4
+
+    oscillator1.frequency.setValueAtTime(329.63, startTime + 1); // E4
+    oscillator2.frequency.setValueAtTime(392.00, startTime + 1); // G4
+
+    oscillator1.frequency.setValueAtTime(261.63, startTime + 1.5); // C4
+    oscillator2.frequency.setValueAtTime(329.63, startTime + 1.5); // E4
+
+    // 음악 시작
+    oscillator1.start();
+    oscillator2.start();
+
+    // 2초 후에 반복하도록 설정
+    setTimeout(() => {
+        if (isMusicPlaying) {
+            createBackgroundMusic(); // 재귀 호출로 반복
+        }
+    }, melodyDuration * 1000);
+
+    // 음악 중지 시 오실레이터 정지
+    oscillator1.stop(audioContext.currentTime + melodyDuration);
+    oscillator2.stop(audioContext.currentTime + melodyDuration);
+}
+
+// 배경음악 토글
+function toggleBackgroundMusic() {
+    if (!isMusicPlaying) {
+        isMusicPlaying = true;
+        createBackgroundMusic();
+    } else {
+        isMusicPlaying = false;
+        audioContext.close();
+    }
+}
+
+// Web Audio API로 효과음 생성 함수
+function playEffectSound(type) {
+    if (isMuted) return;
+    if (!audioCtx) initializeAudio();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    if (type === 'gameOver') {
+        // 게임 오버 효과음 (하강 음계)
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
+        gainNode.gain.setValueAtTime(0.02, audioCtx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.5); // A3
+    } else if (type === 'clear') {
+        // 클리어 효과음 (상승 음계)
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(330, audioCtx.currentTime); // E4
+        gainNode.gain.setValueAtTime(0.02, audioCtx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(660, audioCtx.currentTime + 0.5); // E5
+    } else if (type === 'select') {
+        // 카드 선택 효과음 (짧고 단일 톤)
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(400, audioCtx.currentTime); // A4
+        gainNode.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+    } else if (type === 'match') {
+        // 카드 페어 효과음 (상승 2음)
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(330, audioCtx.currentTime); // E4
+        gainNode.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(660, audioCtx.currentTime + 0.2); // E5
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+    }
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.5); // 0.5초 후 사운드 종료
+}
+
+function initializeAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        console.log('AudioContext 초기화 완료');
+    }
+}
+
+// 게임 오버 효과음 호출
+function playGameOverSound() {
+    playEffectSound('gameOver');
+}
+
+// 클리어 효과음 호출
+function playClearSound() {
+    playEffectSound('clear');
+}
+
+// 예시: 게임 오버 시 효과음 재생
+function gameOver() {
+    playGameOverSound();
+
+    currentStage = 1;
+
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    drawMessage("Time's up! Game Over.");
+
+    button.visible = true;
+    drawButton(button);
+}
+
+// 예시: 클리어 시 효과음 재생
+function stageClear() {
+    playClearSound();
+
+    if (currentStage < maxStages) {
+        currentStage++;
+
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        buttonNext.visible = true;
+
+        drawMessage(`스테이지 ${currentStage - 1} 완료! 다음 스테이지로 진행하려면 버튼을 클릭하세요.`)
+        drawButton(buttonNext);
+
+
+    } else {
+        drawMessage('모든 스테이지 완료! 축하합니다!');
+        currentStage = 1;
+        drawButton(button);
+    }
+}
+
+// 카드 선택 효과음
+function playSelectSound() {
+    playEffectSound('select');
+}
+
+// 카드 페어 효과음
+function playMatchSound() {
+    playEffectSound('match');
+}
+
+// 캔버스 왼쪽 아래 버튼 크기 및 위치
+const muteButton = {
+    x: 10, // 캔버스 왼쪽 아래 위치
+    y: canvas.height - 50,
+    width: 40,
+    height: 40,
+};
+
+// 음소거 버튼 그리기
+function drawMuteButton() {
+    ctx.fillStyle = isMuted ? 'gray' : 'lightgreen'; // 음소거 시 회색, 활성화 시 연두색
+    ctx.fillRect(muteButton.x, muteButton.y, muteButton.width, muteButton.height);
+
+    ctx.fillStyle = 'black';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isMuted ? '🔇' : '🔊', muteButton.x + muteButton.width / 2, muteButton.y + muteButton.height / 2);
+}
+
+// 음소거 상태 변경
+function toggleMute() {
+    isMuted = !isMuted;
+    ctx.clearRect(muteButton.x, muteButton.y, muteButton.width, muteButton.height);
+    drawMuteButton();
+}
 
 
 // 버튼 위치와 크기
@@ -95,6 +295,7 @@ function checkAllImagesLoaded() {
     if (imagesLoadedCount === totalImages) {
         isImgLoad = true;
         drawButton(button);
+        drawMuteButton();
     }
 }
 
@@ -107,12 +308,14 @@ hiddenCardImage.onload = checkAllImagesLoaded;
 // 게임 시작
 function startGame() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    drawMuteButton();
     if (!isRunning) {
         isRunning = true;
-        startButton.disabled = true;
-        messageElement.innerHTML = `스테이지 ${currentStage} 시작!`;
+        // startButton.disabled = true;
+        messageElement.innerHTML = `STAGE${currentStage}`;
 
         if (isImgLoad) {
+            toggleBackgroundMusic();
             generateTilePairs();
             revealAllTiles();
             drawTiles();
@@ -231,6 +434,7 @@ function gameLoop() {
 
     drawTimer(); // 타이머 그리기
     drawTiles();
+    drawMuteButton();
 
     requestAnimationFrame(gameLoop);
 }
@@ -256,12 +460,21 @@ function drawTiles() {
     });
 }
 
+function drawMessage(message) {
+    ctx.font = '20px Arial';
+    ctx.fillStyle = 'black';
+    ctx.clearRect(0, 0, canvasWidth, 30);
+    ctx.fillText(`${message}`, 300, 20);
+}
+
 // 마우스 클릭 이벤트
 let selectedTiles = [];
 canvas.addEventListener('click', (event) => {
     const rect = canvas.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
+
+    initializeAudio();
 
     if (isRunning) {
         handleTileClick(mouseX, mouseY);
@@ -271,6 +484,13 @@ canvas.addEventListener('click', (event) => {
         mouseY >= button.y &&
         mouseY <= button.y + button.height) {
         startGame();
+    }
+
+    if (mouseX >= muteButton.x &&
+        mouseX <= muteButton.x + muteButton.width &&
+        mouseY >= muteButton.y &&
+        mouseY <= muteButton.y + muteButton.height) {
+        toggleMute();
     }
 });
 
@@ -295,6 +515,7 @@ function handleTileClick(mouseX, mouseY) {
 
 // 타일 선택/해제
 function toggleTileSelection(tile) {
+    playSelectSound();
     if (tile.selected) {
         tile.selected = false;
         selectedTiles = selectedTiles.filter(t => t !== tile);
@@ -308,10 +529,12 @@ function toggleTileSelection(tile) {
 // 쌍 체크
 function checkPair() {
     const [tile1, tile2] = selectedTiles;
-
     if (tile1.type === tile2.type) {
+        animateMatchedTile(tile1);
+        animateMatchedTile(tile2);
         removeTile(tile1);
         removeTile(tile2);
+        playMatchSound();
     } else {
         setTimeout(() => {
             tile1.revealed = false; //다시 숨김
@@ -338,40 +561,46 @@ function removeTile(tile) {
 
 // 스테이지 종료
 function endGame(success) {
-    if (success) {
-        if (currentStage < maxStages) {
-            currentStage++;
-            messageElement.innerHTML = `스테이지 ${currentStage - 1} 완료! 다음 스테이지로 진행하려면 버튼을 클릭하세요.`;
-            startButton.disabled = false;
-
-            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-            buttonNext.visible = true;
-            drawButton(buttonNext);
-        } else {
-            messageElement.innerHTML = '모든 스테이지 완료! 축하합니다!';
-            currentStage = 1;
-            drawButton(button);
-        }
-    }
-    else {
-        messageElement.innerHTML = "Time's up! Game Over.";
-        currentStage = 1;
-
-        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-        button.visible = true;
-        drawButton(button);
-    }
-    isRunning = false;
     stopTimer();
-    startButton.disabled = false;
+    setTimeout(() => {
+        if (success) {
+            stageClear();
+        }
+        else {
+            gameOver();
+        }
+    }, 1000);
+    isMusicPlaying = false;
+    isRunning = false;
+    drawMuteButton();
 }
 
-// 시작 버튼 클릭 이벤트
-startButton.addEventListener('click', startGame);
+// 카드 매칭 애니메이션 추가
+function animateMatchedTile(tile) {
+    const animationDuration = 500; // 500ms
+    let startTime;
+
+    function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const progress = timestamp - startTime;
+
+        const scale = 1 + 0.5 * Math.sin((progress / animationDuration) * Math.PI);
+        ctx.save();
+        ctx.translate(tile.x + tile.width / 2, tile.y + tile.height / 2);
+        ctx.scale(scale, scale);
+        ctx.translate(-(tile.x + tile.width / 2), -(tile.y + tile.height / 2));
+        ctx.drawImage(animalImages[tile.type], tile.x, tile.y, tile.width, tile.height);
+        ctx.restore();
+
+        if (progress < animationDuration) {
+            requestAnimationFrame(step);
+        }
+    }
+
+    requestAnimationFrame(step);
+}
 
 
 // 추가사항
 // 조금 꾸미기
 // 광고 넣기
-// 소리 효과음
-// 카드 맞았을 때 효과
