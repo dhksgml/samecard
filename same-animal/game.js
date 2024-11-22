@@ -19,6 +19,9 @@ const maxStages = 5; // 최대 스테이지
 let imagesLoadedCount = 0;
 let isImgLoad = false;
 
+let timer; // 타이머 ID
+let timeRemaining; // 남은 시간
+
 
 // 동물 이미지 설정
 const animalImages = {
@@ -34,7 +37,10 @@ const animalImages = {
     tiger2: new Image(),
 };
 
-const totalImages = Object.keys(animalImages).length;
+const hiddenCardImage = new Image(); // 숨겨진 카드 이미지
+hiddenCardImage.src = 'https://via.placeholder.com/80?text=hidden';
+
+const totalImages = Object.keys(animalImages).length + 1;
 
 animalImages.cat.src = 'https://via.placeholder.com/80?text=Cat';
 animalImages.dog.src = 'https://via.placeholder.com/80?text=Dog';
@@ -60,20 +66,46 @@ function checkAllImagesLoaded() {
 Object.keys(animalImages).forEach((key) => {
     animalImages[key].onload = checkAllImagesLoaded;
 });
+hiddenCardImage.onload = checkAllImagesLoaded;
+
+
 
 // 게임 시작
 function startGame() {
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     if (!isRunning) {
         isRunning = true;
         startButton.disabled = true;
         messageElement.innerHTML = `스테이지 ${currentStage} 시작!`;
-
+        
         if (isImgLoad) {
             generateTilePairs();
-            shuffleTiles(); // 타일 섞기
-            gameLoop();
+            revealAllTiles();
+            drawTiles();
+            timeRemaining = 30; // 초기 타이머 시간 설정 (30초)
+            setTimeout(() => {
+                hideAllTiles(); // 2초 뒤 타일 숨기기
+                startTimer();
+                gameLoop();
+            }, 2000);
         }
     }
+}
+
+// 타이머 시작
+function startTimer() {
+    clearInterval(timer); // 기존 타이머 초기화
+    timer = setInterval(() => {
+        timeRemaining--;
+        if (timeRemaining <= 0) {
+            endGame(false); // 시간 초과 시 게임 종료
+        }
+    }, 1000);
+}
+
+// 타이머 중지
+function stopTimer() {
+    clearInterval(timer);
 }
 
 // 스테이지에 따른 타일 생성
@@ -94,6 +126,7 @@ function generateTilePairs() {
                 width: 80,
                 height: 80,
                 selected: false, // 선택 여부
+                revealed: false, //타일 초기 상태 : 숨겨짐
             });
         }
     }
@@ -146,27 +179,46 @@ function arrangeTilesInCenter() {
     });
 }
 
+// 모든 타일 공개
+function revealAllTiles() {
+    tiles.forEach(tile => tile.revealed = true);
+}
+
+// 모든 타일 숨기기
+function hideAllTiles() {
+    tiles.forEach(tile => tile.revealed = false);
+}
+
 // 게임 루프
 function gameLoop() {
     if (!isRunning) return;
 
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
+    drawTimer(); // 타이머 그리기
     drawTiles();
 
     requestAnimationFrame(gameLoop);
 }
 
+// 타이머 그리기
+function drawTimer() {
+    ctx.font = '20px Arial';
+    ctx.fillStyle = 'black';
+    ctx.clearRect(0, 0, canvasWidth, 30); // 타이머 영역 지우기
+    ctx.fillText(`Time Left: ${timeRemaining}s`, 10, 20);
+}
+
 // 타일 그리기
 function drawTiles() {
     tiles.forEach(tile => {
+        const img = tile.revealed ? animalImages[tile.type] : hiddenCardImage; //선택에 따라 이미지 결정
+        ctx.drawImage(img, tile.x, tile.y, tile.width, tile.height);
+
         ctx.strokeStyle = tile.selected ? 'red' : 'black';
         ctx.lineWidth = tile.selected ? 4 : 1;
 
         ctx.strokeRect(tile.x, tile.y, tile.width, tile.height);
-
-        const img = animalImages[tile.type];
-        ctx.drawImage(img, tile.x, tile.y, tile.width, tile.height);
     });
 }
 
@@ -178,7 +230,7 @@ canvas.addEventListener('click', (event) => {
     const mouseY = event.clientY - rect.top;
 
     const clickedTile = checkCollision(mouseX, mouseY);
-    if (clickedTile) {
+    if (clickedTile && !clickedTile.revealed) {
         toggleTileSelection(clickedTile);
 
         if (selectedTiles.length === 2) {
@@ -202,6 +254,7 @@ function toggleTileSelection(tile) {
         selectedTiles = selectedTiles.filter(t => t !== tile);
     } else if (selectedTiles.length < 2) {
         tile.selected = true;
+        tile.revealed = true;
         selectedTiles.push(tile);
     }
 }
@@ -213,6 +266,11 @@ function checkPair() {
     if (tile1.type === tile2.type) {
         removeTile(tile1);
         removeTile(tile2);
+    }else{
+        setTimeout(()=>{
+            tile1.revealed = false; //다시 숨김
+            tile2.revealed = false;
+        },1000);
     }
 
     selectedTiles.forEach(tile => tile.selected = false);
@@ -220,7 +278,7 @@ function checkPair() {
 
     if (tiles.length === 0) {
         ctx.clearRect(0,0,canvasWidth,canvasHeight);
-        endStage();
+        endGame(true);
     }
 }
 
@@ -233,16 +291,34 @@ function removeTile(tile) {
 }
 
 // 스테이지 종료
-function endStage() {
-    isRunning = false;
-    if (currentStage < maxStages) {
-        currentStage++;
-        messageElement.innerHTML = `스테이지 ${currentStage - 1} 완료! 다음 스테이지로 진행하려면 버튼을 클릭하세요.`;
-        startButton.disabled = false;
-    } else {
-        messageElement.innerHTML = '모든 스테이지 완료! 축하합니다!';
+function endGame(success) {
+    if(success)
+    {
+        if (currentStage < maxStages) {
+            currentStage++;
+            messageElement.innerHTML = `스테이지 ${currentStage - 1} 완료! 다음 스테이지로 진행하려면 버튼을 클릭하세요.`;
+            startButton.disabled = false;
+        } else {
+            messageElement.innerHTML = '모든 스테이지 완료! 축하합니다!';
+            currentStage = 1;
+        }
     }
+    else
+    {
+        messageElement.innerHTML = "Time's up! Game Over.";
+        currentStage = 1;
+    }
+    isRunning = false;
+    stopTimer();
+    startButton.disabled = false;
 }
 
 // 시작 버튼 클릭 이벤트
 startButton.addEventListener('click', startGame);
+
+
+// 추가사항
+// 조금 꾸미기
+// 광고 넣기
+// 소리 효과음
+// 카드 맞았을 때 효과
