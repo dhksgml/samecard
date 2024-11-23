@@ -7,7 +7,7 @@ const canvasWidth = canvas.width;
 const canvasHeight = canvas.height;
 
 // 동물 종류 및 타일 배열
-const animalTypes = ['cat', 'dog', 'rabbit', 'fox', 'bird', 'elephant', 'mongkey', 'tiger', 'tiger1', 'tiger2'];
+const animalTypes = ['elephant', 'fox', 'giraffe', 'koala', 'panda', 'puppy1', 'puppy2', 'tiger', 'rabbit', 'squirrel'];
 const stageCount = [4, 6, 12, 16, 20];
 let tiles = []; // 타일 배열
 
@@ -31,33 +31,33 @@ let isMusicPlaying = false; // 음악 재생 상태
 
 // 동물 이미지 설정
 const animalImages = {
-    cat: new Image(),
-    dog: new Image(),
-    rabbit: new Image(),
-    fox: new Image(),
-    bird: new Image(),
     elephant: new Image(),
-    mongkey: new Image(),
+    fox: new Image(),
+    giraffe: new Image(),
+    koala: new Image(),
+    panda: new Image(),
+    puppy1: new Image(),
+    puppy2: new Image(),
     tiger: new Image(),
-    tiger1: new Image(),
-    tiger2: new Image(),
+    rabbit: new Image(),
+    squirrel: new Image(),
 };
 
 const hiddenCardImage = new Image(); // 숨겨진 카드 이미지
-hiddenCardImage.src = 'https://via.placeholder.com/80?text=hidden';
+hiddenCardImage.src = "images/icon.png";
 
 const totalImages = Object.keys(animalImages).length + 1;
 
-animalImages.cat.src = 'https://via.placeholder.com/80?text=Cat';
-animalImages.dog.src = 'https://via.placeholder.com/80?text=Dog';
-animalImages.rabbit.src = 'https://via.placeholder.com/80?text=Rabbit';
-animalImages.fox.src = 'https://via.placeholder.com/80?text=Fox';
-animalImages.bird.src = 'https://via.placeholder.com/80?text=Bird';
-animalImages.elephant.src = 'https://via.placeholder.com/80?text=Elephant';
-animalImages.mongkey.src = 'https://via.placeholder.com/80?text=mongkey';
-animalImages.tiger.src = 'https://via.placeholder.com/80?text=tiger';
-animalImages.tiger1.src = 'https://via.placeholder.com/80?text=tiger1';
-animalImages.tiger2.src = 'https://via.placeholder.com/80?text=tiger2';
+animalImages.elephant.src = "images/elephant.png";
+animalImages.fox.src = "images/fox.png";
+animalImages.giraffe.src = "images/giraffe.png";
+animalImages.koala.src = "images/koala.png";
+animalImages.panda.src = "images/panda.png";
+animalImages.puppy1.src = "images/puppy1.png";
+animalImages.puppy2.src = "images/puppy2.png";
+animalImages.tiger.src = "images/tiger.png";
+animalImages.rabbit.src = "images/rabbit.png";
+animalImages.squirrel.src = "images/squirrel.png";
 
 
 function createBackgroundMusic() {
